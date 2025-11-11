@@ -217,23 +217,63 @@ async function validarCertificado() {
 
   try {
     const mapa = await carregarMapaChaves();
-    if (mapa.has(chave)) {
-      const d = mapa.get(chave);
-      if (typeof confetti === "function") confetti();
-      return mostrar(`
-        <div style="padding:30px;background:#2F4F4F;border:2px solid #000;border-radius:16px;color:#fff;">
-          <h2 style="color:#FFFAFA;">🎓 A Decole Educacional te parabeniza por investir em seu futuro conosco!!!</h2>
-          ${d.nome ? `<p style="font-weight:bold;font-size:18px;">${d.nome}</p>` : ""}
-          ${d.email ? `<p>${d.email}</p>` : ""}
-          <div style="margin-top:20px;">
-            <img src="https://cdn-icons-png.flaticon.com/512/190/190411.png" alt="Selo" width="80"/>
-          </div>
-          <button onclick="baixarCertificado('${chave}')" style="margin-top:25px;padding:12px 20px;font-size:16px;border-radius:30px;background:#f57a07;color:white;border:none;cursor:pointer;">
-            📥 Baixar Certificado
-          </button>
+  if (mapa.has(chave)) {
+  const d = mapa.get(chave);
+  const nome  = d?.nome  || "";
+  const curso = d?.curso || d?.CURSO || "";
+  const data  = d?.data  || d?.DATA  || d?.data_emissao || "";
+
+  if (typeof confetti === "function") confetti();
+
+  return mostrar(`
+    <div style="
+      max-width:620px;margin:40px auto;padding:28px 26px;
+      background:#2F4F4F;border:2px solid #000;border-radius:16px;color:#fff;
+      box-shadow:0 10px 22px rgba(0,0,0,.25);
+    ">
+      <h2 style="margin:0 0 12px;font-size:22px;line-height:1.35;color:#fff;">
+        <span style="font-size:24px;margin-right:8px;">🎓</span>
+        A Decole Educacional te Parabeniza por investir em seu futuro conosco.
+      </h2>
+
+      ${nome ? `<p style="margin:6px 0 2px;font-weight:700;font-size:18px;">${nome}</p>` : ""}
+
+      ${curso ? `<p style="margin:8px 0 0;">Concluiu o curso:
+        <strong style="color:#F5F5F5">${curso}</strong></p>` : ""}
+
+      ${data ? `<p style="margin:4px 0 0;">Data de conclusão:
+        <strong style="color:#F5F5F5">${data}</strong></p>` : ""}
+
+      <div style="display:flex;justify-content:center;margin:22px 0 14px;">
+        <div style="
+          width:86px;height:86px;border-radius:50%;
+          background:#24B47E;display:flex;align-items:center;justify-content:center;
+          box-shadow:inset 0 -6px 0 rgba(0,0,0,.15), 0 8px 18px rgba(0,0,0,.25);
+        ">
+          <svg width="44" height="44" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M20 6L9 17l-5-5" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
         </div>
-      `);
-    }
+      </div>
+
+      <div style="text-align:center;margin-top:8px;">
+        <button
+          onclick="baixarCertificado('${chave}')"
+          style="
+            background:#f57a07;color:#fff;border:none;border-radius:30px;
+            padding:12px 22px;font-size:16px;font-weight:700;cursor:pointer;
+            box-shadow:0 6px 16px rgba(245,122,7,.35);transition:transform .05s ease;
+          "
+          onmousedown="this.style.transform='translateY(1px)';"
+          onmouseup="this.style.transform='';"
+        >
+          📥 Baixar Certificado
+        </button>
+      </div>
+    </div>
+  `);
+}
+
 
     return mostrar(`
       <div style="padding:20px;background:#ffe6e6;border:2px solid #e57373;border-radius:12px;color:#000;">
