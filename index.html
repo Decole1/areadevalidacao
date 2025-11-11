@@ -112,84 +112,131 @@
     </p>
   </footer>
 
-  <script>
-    async function validarCertificado() {
-      const chave = document.getElementById('input-chave').value.trim();
-      const resultado = document.getElementById('resultado-validacao');
+ <script>
+/* ===== AJUSTE AQUI ===== */
+const SHEET_ID = '1l7xRjsbckWod963MkHGZXVfFqpF7uKsb'; // <-- substitua pelo ID da SUA planilha
+const GID      = '1284708780'; // gid da aba "ALUNOS PAGOS"
 
-      if (!chave) {
-        resultado.innerHTML = `
-          <div style="padding: 15px; background: #ffe6e6; border: 2px solid #e57373; border-radius: 10px; color: #000;">
-            <h2 style="color: #c62828;">❌ Por favor, insira uma chave válida</h2>
+/* ===== NÃO MEXA ABAIXO ===== */
+const GVIZ_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&gid=${GID}`;
+let _cacheMapa = null;
+
+const norm = s => (s || '')
+  .toString()
+  .normalize('NFKC')
+  .replace(/\u00A0/g, ' ')   
+  .replace(/\s+/g, '')       
+  .toUpperCase().trim();
+
+async function carregarMapaChaves() {
+  if (_cacheMapa) return _cacheMapa;
+
+  const resp  = await fetch(GVIZ_URL, { cache: 'no-store' });
+  const texto = await resp.text();
+  const json = JSON.parse(texto.substring(texto.indexOf('{'), texto.lastIndexOf(')')));
+  const rows = (json.table && json.table.rows) ? json.table.rows : [];
+
+  let headerIdx = 0;
+  for (let i = 0; i < Math.min(6, rows.length); i++) {
+    const vals = rows[i].c.map(c => c?.v ? String(c.v).trim().toUpperCase() : '');
+    if (vals.includes('CHAVES') || vals.includes('CHAVE')) { headerIdx = i; break; }
+  }
+
+  const header = rows[headerIdx].c.map(c => c?.v ? String(c.v).trim().toUpperCase() : '');
+  const idxChave = header.findIndex(h => h === 'CHAVES' || h === 'CHAVE');
+  const idxNome  = header.findIndex(h => h === 'NOME');
+  const idxEmail = header.findIndex(h => h === 'EMAIL');
+
+  if (idxChave === -1) throw new Error('Coluna "CHAVES" não encontrada.');
+
+  const mapa = new Map();
+  for (let i = headerIdx + 1; i < rows.length; i++) {
+    const c = rows[i].c;
+    const chave = norm(c[idxChave]?.v ?? '');
+    if (!chave) continue;
+
+    const nome  = (idxNome  >= 0 && c[idxNome]?.v)  ? String(c[idxNome].v).trim()  : '';
+    const email = (idxEmail >= 0 && c[idxEmail]?.v) ? String(c[idxEmail].v).trim() : '';
+    mapa.set(chave, { nome, email });
+  }
+
+  _cacheMapa = mapa;
+  return mapa;
+}
+
+function mostrar(tipo, html){
+  const box = document.getElementById('resultado-validacao');
+  box.innerHTML = html;
+  box.scrollIntoView({ behavior: 'smooth' });
+}
+
+async function validarCertificado() {
+  const input = document.getElementById('input-chave');
+  const chave = norm(input.value);
+
+  if (!chave) {
+    return mostrar('erro', `
+      <div style="padding:15px;background:#ffe6e6;border:2px solid #e57373;border-radius:10px;color:#000;">
+        <h2 style="color:#c62828;">❌ Por favor, insira uma chave válida</h2>
+      </div>
+    `);
+  }
+
+  mostrar('info', `
+    <div style="padding:30px;background:#333;border:2px solid #888;border-radius:18px;">
+      <h3 style="color:#ddd;">🔎 Verificando seu certificado...</h3>
+    </div>
+  `);
+
+  try {
+    const mapa = await carregarMapaChaves();
+
+    if (mapa.has(chave)) {
+      const d = mapa.get(chave);
+      confetti();
+      return mostrar('ok', `
+        <div style="padding:30px;background:#2F4F4F;border:2px solid #000;border-radius:16px;color:#fff;">
+          <h2 style="color:#FFFAFA;">🎓 Certificado encontrado!</h2>
+          ${d.nome ? `<p style="font-weight:bold;font-size:18px;">${d.nome}</p>` : ''}
+          ${d.email ? `<p>${d.email}</p>` : ''}
+          <div style="margin-top:20px;">
+            <img src="https://cdn-icons-png.flaticon.com/512/190/190411.png" alt="Selo" width="80"/>
           </div>
-        `;
-        return;
-      }
-
-      resultado.innerHTML = `
-        <div style="padding: 30px; background: #333; border: 2px solid #888; border-radius: 18px;">
-          <h3 style="color: #ddd;">🔎 Verificando seu certificado...</h3>
+          <button onclick="baixarCertificado('${chave}')" style="margin-top:25px;padding:12px 20px;font-size:16px;border-radius:30px;background:#f57a07;color:white;border:none;cursor:pointer;">
+            📥 Baixar Certificado
+          </button>
         </div>
-      `;
-
-      try {
-        const res = await fetch("https://docs.google.com/spreadsheets/d/e/2PACX-1vR-ApFebCMQ4d_rE8wOvgPFIe7sH5gMY5SUhQtm6HgJQOQP_sjvYDQ1HiYaQ96XWQ/pubhtml?gid=1284708780&single=true");
-        const csv = await res.text();
-        const linhas = csv.split("\n").slice(1);
-
-        let encontrado = false;
-
-        for (let linha of linhas) {
-          const [nome, curso, data_emissao, chave_planilha] = linha.trim().split(",");
-          if (chave_planilha === chave) {
-            confetti();
-            resultado.innerHTML = `
-              <div style="padding: 30px; background: #2F4F4F; border: 2px solid #000000; border-radius: 16px; color: #fff;">
-                <h2 style="color: #FFFAFA;">🎓 A Decole Educacional te Parabeniza por investir em seu futuro conosco.</h2>
-                <p style="font-weight: bold; font-size: 18px;">${nome}</p>
-                <p>Concluiu o curso: <strong>${curso}</strong></p>
-                <p>Data de conclusão: <strong>${data_emissao}</strong></p>
-                <div style="margin-top: 20px;">
-                  <img src='https://cdn-icons-png.flaticon.com/512/190/190411.png' alt='Selo de autenticidade' width='80'/>
-                </div>
-                <button onclick="baixarCertificado('${chave}')" style="margin-top: 25px; padding: 12px 20px; font-size: 16px; border-radius: 30px; background-color: #f57a07; color: white; border: none; cursor: pointer;">
-                  📥 Baixar Certificado
-                </button>
-              </div>
-            `;
-            resultado.scrollIntoView({ behavior: 'smooth' });
-            encontrado = true;
-            break;
-          }
-        }
-
-        if (!encontrado) {
-          resultado.innerHTML = `
-            <div style="padding: 20px; background: #ffe6e6; border: 2px solid #e57373; border-radius: 12px; color: #000;">
-              <h2 style="color: #c62828;">❌ Certificado não encontrado</h2>
-              <p>Verifique a chave digitada ou entre em contato com o emissor.</p>
-            </div>
-          `;
-        }
-      } catch (e) {
-        resultado.innerHTML = `
-          <div style="padding: 20px; background: #fffde7; border: 2px solid #fdd835; border-radius: 12px; color: #000;">
-            <h2 style="color: #f9a825;">⚠️ Erro ao validar</h2>
-            <p>Tente novamente em instantes.</p>
-          </div>
-        `;
-      }
+      `);
     }
 
-    function baixarCertificado(chave) {
-      const url = `https://raw.githubusercontent.com/Decole1/certificado-validacao/main/certificados/${chave}.pdf`;
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${chave}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    }
-  </script>
+    return mostrar('erro', `
+      <div style="padding:20px;background:#ffe6e6;border:2px solid #e57373;border-radius:12px;color:#000;">
+        <h2 style="color:#c62828;">❌ Certificado não encontrado</h2>
+        <p>Verifique a chave digitada ou entre em contato com o emissor.</p>
+      </div>
+    `);
+
+  } catch (e) {
+    console.error(e);
+    return mostrar('erro', `
+      <div style="padding:20px;background:#fffde7;border:2px solid #fdd835;border-radius:12px;color:#000;">
+        <h2 style="color:#f9a825;">⚠️ Erro ao validar</h2>
+        <p>Confirme se a planilha foi <strong>Publicada na Web</strong> e está acessível.</p>
+      </div>
+    `);
+  }
+}
+
+function baixarCertificado(chave) {
+  const url = `https://raw.githubusercontent.com/Decole1/areadevalidacao/main/certificados/${chave}.pdf`;
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `${chave}.pdf`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+</script>
+
 </body>
 </html>
