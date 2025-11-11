@@ -133,7 +133,7 @@
       `;
 
       try {
-        const res = await fetch("https://docs.google.com/spreadsheets/d/1I7xRjsbckWod963MkHGZXVfPqpF7uKsb/edit?gid=1284708780#gid=1284708780");
+        const res = await fetch("https://docs.google.com/spreadsheets/d/e/2PACX-1vR-ApFebCMQ4d_rE8wOvgPFIe7sH5gMY5SUhQtm6HgJQOQP_sjvYDQ1HiYaQ96XWQ/pubhtml?gid=1284708780&single=true");
         const csv = await res.text();
         const linhas = csv.split("\n").slice(1);
 
